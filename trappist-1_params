@@ -1,0 +1,8 @@
+# Mass norm constant (TRAPPIST-1 star mass in kg, ~0.08 solar masses)
+Mnorm = 1.58e29
+
+# astronomical unit (in meters)
+Lnorm = 1.496e11
+
+# Time norm constant (one year in seconds)
+Tnorm = 31558150

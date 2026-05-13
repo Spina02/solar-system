@@ -1,0 +1,11 @@
+# Mass norm constant
+# prev attempt: Mnorm = 5.028e-31
+Mnorm = 1.989e30 
+
+# astronomical unit
+# prev attempt: Lnorm = 1.496e11
+Lnorm = 1.496e11
+
+# Time norm constant
+# prev attempt: Tnorm = 3.169e-8
+Tnorm = 31558150
