@@ -1,168 +1,156 @@
-CC = gcc
-LDFLAGS = -lm
+CC := gcc
+LDFLAGS := -lm
 
 # Directories
-SRC_DIR = src
-INC_DIR = include
-OBJ_DIR_BASE = build
-BIN_DIR_BASE = bin
-OUT_DIR_BASE = artifacts
+SRC_DIR := src
+INC_DIR := include
 
-# Debug and release flags
-CFLAGS_COMMON = -Wall -Wextra -Wpedantic -Werror -I$(INC_DIR)
+# Optimization flags
+OPTFLAGS ?= -O3
+CFLAGS_COMMON := -Wall -Wextra -Wpedantic -Werror -I$(INC_DIR) $(OPTFLAGS)
+CFLAGS_EXTRA ?= # Extra compiler flags
+CFLAGS_SOLAR := $(CFLAGS_COMMON) -DRK4 $(strip $(CFLAGS_EXTRA)) # Solar system compiler flags
+CFLAGS_TRAP := $(CFLAGS_COMMON) -DTRAPPIST -DRK4 $(strip $(CFLAGS_EXTRA)) # Trappist system compiler flags
 
-# Dynamic CFLAGS configuration based on MAKECMDGOALS
-# Base flags (Debug vs Release)
-ifneq (,$(findstring debug,$(MAKECMDGOALS)))
-ifneq (,$(findstring release,$(MAKECMDGOALS)))
-$(error Error: Cannot specify both debug and release)
-endif
-    CFLAGS_BASE = $(CFLAGS_COMMON) -g -O0 -DDEBUG
-else
-    CFLAGS_BASE = $(CFLAGS_COMMON) -O3
-endif
+# Solar system
+SOLAR_OBJ := build/solar_system
+SOLAR_BIN := bin/solar_system
+SOLAR_OUT := artifacts/solar_system
 
-# System flags (Trappist vs Sun)
-CFLAGS_SYS =
-ifneq (,$(findstring trappist,$(MAKECMDGOALS)))
-ifneq (,$(findstring sun,$(MAKECMDGOALS)))
-	$(error Error: Cannot specify both sun and trappist)
-endif
-    CFLAGS_SYS += -DTRAPPIST
-	BIN_DIR = $(BIN_DIR_BASE)/trappist_system
-	OBJ_DIR = $(OBJ_DIR_BASE)/trappist_system
-	OUT_DIR = $(OUT_DIR_BASE)/trappist_system
-	TARGET = trappist_system
-else
-	BIN_DIR = $(BIN_DIR_BASE)/solar_system
-	OBJ_DIR = $(OBJ_DIR_BASE)/solar_system
-	OUT_DIR = $(OUT_DIR_BASE)/solar_system
-	TARGET = solar_system
+# Trappist system
+TRAP_OBJ := build/trappist_system
+TRAP_BIN := bin/trappist_system
+TRAP_OUT := artifacts/trappist_system
+
+# Source and header files
+SRCS := $(filter-out $(SRC_DIR)/bin2ascii.c, $(wildcard $(SRC_DIR)/*.c))
+HEADERS := $(wildcard $(INC_DIR)/*.h)
+
+# Object files
+SOLAR_OBJS := $(SRCS:$(SRC_DIR)/%.c=$(SOLAR_OBJ)/%.o)
+TRAP_OBJS := $(SRCS:$(SRC_DIR)/%.c=$(TRAP_OBJ)/%.o)
+
+# Extra CLI tokens after run / run-trappist are simulator args, not Make goals.
+KNOWN_GOALS := all clean sun trappist run run-trappist convert convert-trappist plot plot-trappist help
+ifneq (,$(filter run run-trappist,$(MAKECMDGOALS)))
+  $(foreach t,$(filter-out $(KNOWN_GOALS),$(MAKECMDGOALS)),$(eval $(t):;@:))
 endif
 
-# Method flags (Euler vs RK4)
-CFLAGS_METHOD =
-ifneq (,$(findstring euler,$(MAKECMDGOALS)))
-ifneq (,$(findstring rk4,$(MAKECMDGOALS)))
-$(error Error: Cannot specify both euler and rk4)
-endif
-    CFLAGS_METHOD += -DEULER
-else
-    CFLAGS_METHOD += -DRK4
-endif
+.PHONY: all clean sun trappist run run-trappist convert convert-trappist plot plot-trappist help
 
-# Combined CFLAGS
-CFLAGS = $(CFLAGS_BASE) $(CFLAGS_SYS) $(CFLAGS_METHOD)
-
-# Directory targets
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
-
-$(BIN_DIR):
-	mkdir -p $(BIN_DIR)
-
-$(OUT_DIR):
-	mkdir -p $(OUT_DIR)
-
-# Targets
-TARGETS = $(BIN_DIR)/$(TARGET) $(BIN_DIR)/bin2ascii
-SRCS = $(filter-out $(SRC_DIR)/bin2ascii.c, $(wildcard $(SRC_DIR)/*.c))
-OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-HEADERS = $(wildcard $(INC_DIR)/*.h)
-
-# Arguments
-ARGS = $(filter-out $@,$(MAKECMDGOALS))
-
-# Default target
-all: sun bin2ascii
-
-# Flexible Configuration Targets
-# Matches targets containing keywords to trigger a clean build with appropriate flags
-.PHONY: config_targets
-config_targets:
-	$(MAKE) $(TARGETS) CFLAGS="$(CFLAGS)"
-
-# Match keywords and hyphenated combinations
-sun trappist debug release euler rk4: config_targets
- 	# idk why I need to put an empty target or it will not work
-
-# mixed targets
-sun-% trappist-% debug-% release-% euler-% rk4-% %-sun %-trappist %-debug %-release %-euler %-rk4: config_targets
-	@:
-
-# Compile binary to ASCII converter
-bin2ascii: $(BIN_DIR)/bin2ascii
-	@echo "Binary written to $(BIN_DIR)/bin2ascii"
-
-# Build binary to ASCII converter
-$(BIN_DIR)/bin2ascii: $(SRC_DIR)/bin2ascii.c | $(BIN_DIR)
-	$(CC) $(CFLAGS) $< -o $@
-
-# Build executable
-$(BIN_DIR)/$(TARGET): $(OBJS) | $(BIN_DIR) $(SRC_DIR)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-# Build object files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+all: sun
 
 # Clean build and bin directories
 clean:
-	rm -rf $(OBJ_DIR_BASE) $(BIN_DIR_BASE) $(OUT_DIR_BASE)
+	rm -rf build bin artifacts
+
+# Create directories for build, bin, and artifacts
+$(SOLAR_OBJ) $(TRAP_OBJ) $(SOLAR_BIN) $(TRAP_BIN) $(SOLAR_OUT) $(TRAP_OUT):
+	mkdir -p $@
+
+# Build solar system executable and bin2ascii converter
+sun: $(SOLAR_BIN)/solar_system $(SOLAR_BIN)/bin2ascii
+
+$(SOLAR_OBJ)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(SOLAR_OBJ)
+	$(CC) $(CFLAGS_SOLAR) -c $< -o $@
+
+$(SOLAR_BIN)/solar_system: $(SOLAR_OBJS) | $(SOLAR_BIN) $(SRC_DIR)
+	$(CC) $(CFLAGS_SOLAR) -o $@ $^ $(LDFLAGS)
+
+$(SOLAR_BIN)/bin2ascii: $(SRC_DIR)/bin2ascii.c | $(SOLAR_BIN)
+	$(CC) $(CFLAGS_SOLAR) $< -o $@
+
+# Build trappist system executable and bin2ascii converter
+trappist: $(TRAP_BIN)/trappist_system $(TRAP_BIN)/bin2ascii
+
+$(TRAP_OBJ)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(TRAP_OBJ)
+	$(CC) $(CFLAGS_TRAP) -c $< -o $@
+
+$(TRAP_BIN)/trappist_system: $(TRAP_OBJS) | $(TRAP_BIN) $(SRC_DIR)
+	$(CC) $(CFLAGS_TRAP) -o $@ $^ $(LDFLAGS)
+
+$(TRAP_BIN)/bin2ascii: $(SRC_DIR)/bin2ascii.c | $(TRAP_BIN)
+	$(CC) $(CFLAGS_TRAP) $< -o $@
 
 # Run executable
-run: $(BIN_DIR)/$(TARGET)
-# redirect arguments to the executable, if none use default arguments
-	@args="$(filter-out $@,$(MAKECMDGOALS))"; \
+run: $(SOLAR_BIN)/solar_system | $(SOLAR_OUT)
+	@args="$(filter-out run,$(MAKECMDGOALS))"; \
 	if [ -z "$$args" ]; then \
-		echo "Running default arguments (Solar System): 1.98e30 4 0.39 0.72 1.0 1.52 0.001"; \
-		./$(BIN_DIR)/$(TARGET) 1.98e30 4 0.39 0.72 1.0 1.52 0.001; \
+		echo "Inner solar system defaults: 1.98e30 4 0.39 0.72 1.0 1.52 0.001"; \
+		./$(SOLAR_BIN)/solar_system 1.98e30 4 0.39 0.72 1.0 1.52 0.001; \
 	else \
-		./$(BIN_DIR)/$(TARGET) $$args; \
+		./$(SOLAR_BIN)/solar_system $$args; \
 	fi
 
-run-trappist: $(BIN_DIR)/$(TARGET)
-	@args="$(filter-out $@,$(MAKECMDGOALS))"; \
+run-trappist: $(TRAP_BIN)/trappist_system | $(TRAP_OUT)
+	@args="$(filter-out run-trappist,$(MAKECMDGOALS))"; \
 	if [ -z "$$args" ]; then \
-		echo "Running default arguments (TRAPPIST-1 System): 1.58e29 4 0.0115 0.0158 0.0223 0.0292 0.00001"; \
-		./$(BIN_DIR)/$(TARGET) 1.58e29 4 0.0115 0.0158 0.0223 0.0292 0.00001; \
+		echo "TRAPPIST-1 defaults: 1.58e29 4 0.0115 0.0158 0.0223 0.0292 0.00001"; \
+		./$(TRAP_BIN)/trappist_system 1.58e29 4 0.0115 0.0158 0.0223 0.0292 0.00001; \
 	else \
-		./$(BIN_DIR)/$(TARGET) $$args; \
+		./$(TRAP_BIN)/trappist_system $$args; \
 	fi
 
-convert: $(BIN_DIR)/bin2ascii $(OUT_DIR)
-	./$(BIN_DIR)/bin2ascii 5 $(OUT_DIR)
+# Convert binary files to ASCII files (stamp: skip bin2ascii if planet_*.bin unchanged)
+$(SOLAR_OUT)/.converted: $(SOLAR_BIN)/bin2ascii $(wildcard $(SOLAR_OUT)/planet_*.bin)
+	@if [ -z "$(wildcard $(SOLAR_OUT)/planet_*.bin)" ]; then \
+		echo >&2 "No planet_*.bin in $(SOLAR_OUT); run make run first."; exit 1; fi
+	./$(SOLAR_BIN)/bin2ascii $(if $(NDT),$(NDT),5) $(SOLAR_OUT)
+	@touch $@
 
+$(TRAP_OUT)/.converted: $(TRAP_BIN)/bin2ascii $(wildcard $(TRAP_OUT)/planet_*.bin)
+	@if [ -z "$(wildcard $(TRAP_OUT)/planet_*.bin)" ]; then \
+		echo >&2 "No planet_*.bin in $(TRAP_OUT); run make run-trappist first."; exit 1; fi
+	./$(TRAP_BIN)/bin2ascii $(if $(NDT),$(NDT),5) $(TRAP_OUT)
+	@touch $@
+
+.PHONY: convert
+convert: $(SOLAR_OUT)/.converted
+	@:
+
+.PHONY: convert-trappist
+convert-trappist: $(TRAP_OUT)/.converted
+	@:
+
+# Plot orbits (gifs)
 plot: convert
-	@args="$(filter-out $@,$(MAKECMDGOALS))"; \
-	if [ -z "$$args" ]; then \
-		echo "Plotting default arguments (Solar System)"; \
-		python3 plot.py; \
-	else \
-		python3 plot.py $$args; \
-	fi
+	@args="$(filter-out plot,$(MAKECMDGOALS))"; \
+	python3 plot.py --dir $(SOLAR_OUT) $$args
 
-# Help
-.PHONY: all clean debug run help sun trappist euler config_targets
+plot-trappist: convert-trappist
+	@args="$(filter-out plot-trappist,$(MAKECMDGOALS))"; \
+	python3 plot.py --dir $(TRAP_OUT) $$args
 
 # Help message
 help:
-	@echo "Usage: make [target]"
-	@echo "Targets:"
-	@echo "  all              Build the executable (Default: Sun)"
-	@echo "  [config]         Build with specific config (e.g. trappist-debug, sun-euler)"
-	@echo "  bin2ascii        Convert binary files to ASCII files"
-	@echo "  run [args]       Run the executable"
-	@echo "  convert          Convert binary files to ASCII files"
-	@echo "  clean            Clean the build and bin directories"
-	@echo "  help             Show this help message"
+	@echo "Usage: make [target]  (default target: all → sun)"
 	@echo ""
-	@echo "Configuration keywords (can be combined):"
-	@echo "  sun, trappist    System selection (default is sun)"
-	@echo "  debug, release   Debug or release build (default is release)"
-	@echo "  euler, rk4       Method selection (default is rk4)"
+	@echo "Build:"
+	@echo "  all, sun         Inner solar system: bin/solar_system + bin2ascii"
+	@echo "  trappist         TRAPPIST-1: bin/trappist_system + bin2ascii"
+	@echo ""
+	@echo "Run simulation (optional trailing args → passed to the executable):"
+	@echo "  run              Writes planet_*.bin under artifacts/solar_system"
+	@echo "  run-trappist     Writes planet_*.bin under artifacts/trappist_system"
+	@echo ""
+	@echo "Post-process:"
+	@echo "  convert          .bin → .txt  (optionally: make convert NDT=10)"
+	@echo "  convert-trappist Same, for artifacts/trappist_system (make convert-trappist NDT=10)"
+	@echo "  plot             plot.py --dir artifacts/solar_system (runs convert if needed)"
+	@echo "  plot-trappist    plot.py --dir artifacts/trappist_system"
+	@echo ""
+	@echo "Other:"
+	@echo "  clean            rm -rf build bin artifacts"
+	@echo "  help             This message"
+	@echo ""
+	@echo "Variables (settable at compile time using \"make [target] CFLAGS_EXTRA='[flags]'\"):"
+	@echo "  -DTRAPPIST: selects the TRAPPIST-1 system and its parameter file"
+	@echo "  -DEULER / -DRK4: chooses the integration method"
+	@echo "  -DDEBUG: enables verbose state prints"
+	@echo ""
+	@echo "Typical flow:  make run && make convert && make plot"
 
 %:
 	@echo "Unknown target: $@"
-	@echo "Run 'make help' to see valid options (e.g. sun-euler-debug)."
+	@echo "Run 'make help' for targets and variables."
 	@exit 1
