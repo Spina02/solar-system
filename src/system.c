@@ -38,9 +38,14 @@ void destroy_system(System* system) {
 
 // core function: to update the state of the system, given a dt
 int update_system(System* system, double dt, char* save_dir, Params* params) {
-    if (mkdir(save_dir, 0777) == -1 && errno != EEXIST) {
-        perror("mkdir"); 
-        return EXIT_FAILURE; 
+    // static variable to ensure that the output directory is created only once
+    static int output_dir_ready = 0;
+    if (save_dir != NULL && !output_dir_ready) {
+        if (ensure_dir(save_dir) != 0) {
+            perror("mkdir");
+            return EXIT_FAILURE;
+        }
+        output_dir_ready = 1;
     }
     for (int i = 0; i < system->N_planets; i++) {
         char filename[128];

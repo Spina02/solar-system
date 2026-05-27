@@ -38,4 +38,7 @@ int compare_double(const void* a, const void* b);
 // Calculate the number of iterations as 1 complete orbit of the outermost planet
 int calculate_iterations(double r_outmost, double dt, double M_sun);
 
+// Check if path exist, if not, create it
+static int ensure_dir(const char* path);
+
 #endif // UTILS_H

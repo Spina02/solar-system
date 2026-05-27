@@ -66,7 +66,6 @@ int main(int argc, char* argv[]) {
         printf("Using default number of iterations: %d\n", n_iter);
     }
 
-
     debug_print("\nCreating system\n");
     System* system = create_system(N, M);
 
@@ -76,7 +75,7 @@ int main(int argc, char* argv[]) {
     // debug prints
     printf("\n");
     debug_print_state(system, 0);
-
+    
     // save state of iter 0
     update_system(system, 0, ARTIFACTS, params);
     // update and save state of planets across all the iterations

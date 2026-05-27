@@ -78,3 +78,26 @@ int calculate_iterations(double r, double dt, double M_sun) {
     // Round to the nearest integer number of steps
     return (int) (T / dt + 0.5);
 }
+
+// create path and all missing parent directories
+static int ensure_dir(const char* path) {
+    char tmp[256];
+    size_t len = strlen(path);
+    if (len == 0 || len >= sizeof(tmp)) {
+        return -1;
+    }
+    memcpy(tmp, path, len + 1);
+    for (char* p = tmp + 1; *p != '\0'; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0777) == -1 && errno != EEXIST) {
+                return -1;
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, 0777) == -1 && errno != EEXIST) {
+        return -1;
+    }
+    return 0;
+}

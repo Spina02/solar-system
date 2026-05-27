@@ -34,58 +34,35 @@ def plot_orbits(files, folder, plot, labels, star_label, title):
     plt.savefig(os.path.join(folder, "plot.png"), dpi=200, bbox_inches='tight')
 
 def plot_gif(files, folder, labels, star_label, title):
-    
-    # Load all data
     all_data = [np.loadtxt(os.path.join(folder, f)) for f in files]
     num_frames = len(all_data[0])
-    
-    fig, ax = plt.subplots(figsize=(10, 10), dpi=100)
-    
-    # Determine axis limits from all data
     all_x = np.concatenate([d[:, 1] for d in all_data])
     all_y = np.concatenate([d[:, 2] for d in all_data])
-    margin = 0.1
-    x_range = max(abs(all_x.min()), abs(all_x.max())) * (1 + margin)
-    y_range = max(abs(all_y.min()), abs(all_y.max())) * (1 + margin)
-    limit = max(x_range, y_range)
-    
+    limit = max(abs(all_x).max(), abs(all_y).max()) * 1.1
+
+    fig, ax = plt.subplots(figsize=(10, 10), dpi=150)
+    ax.set(xlim=(-limit, limit), ylim=(-limit, limit), aspect='equal', title=title,
+           xlabel="x position", ylabel="y position")
+    ax.grid(True)
+    ax.plot(0, 0, 'o', color='gold', markersize=10, label=star_label)
+    trails = [ax.plot([], [], alpha=0.5, label=labels[i])[0] for i in range(len(all_data))]
+    points = [ax.plot([], [], 'o', markersize=6)[0] for _ in all_data]
+    ax.legend()
+
     def animate(frame):
-        ax.clear()
-        ax.set_xlim(-limit, limit)
-        ax.set_ylim(-limit, limit)
-        ax.set_aspect('equal')
-        ax.set_title(title)
-        ax.set_xlabel("x position")
-        ax.set_ylabel("y position")
-        ax.grid(True)
-        
-        # Plot the sun/star
-        ax.plot(0, 0, 'o', color='gold', markersize=10, label=star_label)
-        
-        # Plot trajectories up to current frame and current positions
         for i, data in enumerate(all_data):
-            # Plot trail
-            ax.plot(data[:frame+1, 1], data[:frame+1, 2], alpha=0.5, label=labels[i])
-            # Plot current position
-            ax.plot(data[frame, 1], data[frame, 2], 'o', markersize=6)
-        
-        ax.legend()
-        return []
-    
-    # Create animation (use every 10th frame to reduce file size)
+            trails[i].set_data(data[:frame + 1, 1], data[:frame + 1, 2])
+            points[i].set_data([data[frame, 1]], [data[frame, 2]])
+        return trails + points
+
     step = max(1, num_frames // 100)
-    frames = range(0, num_frames, step)
-    anim = animation.FuncAnimation(fig, animate, frames=frames, interval=50, blit=True)
-    
-    # Save as GIF
-    anim.save(os.path.join(folder, "plot.gif"), writer='pillow', fps=20)
+    anim = animation.FuncAnimation(fig, animate, frames=range(0, num_frames, step), blit=True)
+    anim.save(os.path.join(folder, "plot.gif"), writer='pillow', fps=15, dpi=72)
     plt.close()
 
 def main():
     path = os.path.dirname(os.path.abspath(__file__))
-    # TODO: fix here ---------------------------------------------
-    default_dir = os.path.join(path, "artifacts")
-    # TODO: fix here ---------------------------------------------
+    default_dir = os.path.join(path, "artifacts", "solar_system")
     parser = argparse.ArgumentParser(description="Plot solar system or TRAPPIST-1 trajectories")
     parser.add_argument("--dir", type=str, default=default_dir, help="Directory containing data files")
     parser.add_argument("--type", type=str, choices=["scatter", "line"], default="line", help="Plot type")
@@ -101,7 +78,9 @@ def main():
     folder = args.dir
         
     files = get_files(folder)
-    
+    if files is None:
+        print(f"No files found in {folder} directory")
+        return
     # detect if Sun or trappist:
     data = np.loadtxt(os.path.join(folder, files[0]))
     if max(data[:, 1]) < 0.1:
