@@ -93,6 +93,33 @@ void update_planet_euler(System* system, int planet_index, double dt) {
     return;
 }
 
+// // standard Euler version
+// void update_planet_euler(System* system, int planet_index, double dt) {
+
+//     Planet* planet = &(system->planets[planet_index]);
+    
+//     // 1. use the old radius and old position to compute the acceleration
+//     double r_old = planet->r; 
+//     double acc_x = -Gprime * system->M_sun / (r_old * r_old) * planet->pos.x / r_old;
+//     double acc_y = -Gprime * system->M_sun / (r_old * r_old) * planet->pos.y / r_old;
+
+//     // 2. update position using the old velocity
+//     planet->pos.x += planet->vel.x * dt;
+//     planet->pos.y += planet->vel.y * dt;
+
+//     // 3. update velocity using the old acceleration (calculated in step 1)
+//     planet->vel.x += acc_x * dt;
+//     planet->vel.y += acc_y * dt;
+
+//     // 4. update radius based on the new position just calculated
+//     // (will only be needed for acceleration calculation at the next step)
+//     planet->r = sqrt(planet->pos.x * planet->pos.x + planet->pos.y * planet->pos.y);
+
+//     planet->t += dt;
+
+//     return;
+// }
+
 // helper (inline) function to compute the acceleration of a planet
 static inline Coord compute_acceleration(Coord pos, double M_sun) {
     double r = sqrt(pos.x * pos.x + pos.y * pos.y);

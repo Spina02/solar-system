@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 //header guard
 #ifndef UTILS_H
@@ -39,6 +41,6 @@ int compare_double(const void* a, const void* b);
 int calculate_iterations(double r_outmost, double dt, double M_sun);
 
 // Check if path exist, if not, create it
-static int ensure_dir(const char* path);
+int ensure_dir(const char* path);
 
 #endif // UTILS_H

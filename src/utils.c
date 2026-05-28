@@ -80,7 +80,7 @@ int calculate_iterations(double r, double dt, double M_sun) {
 }
 
 // create path and all missing parent directories
-static int ensure_dir(const char* path) {
+int ensure_dir(const char* path) {
     char tmp[256];
     size_t len = strlen(path);
     if (len == 0 || len >= sizeof(tmp)) {
